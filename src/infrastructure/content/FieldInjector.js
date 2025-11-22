@@ -29,21 +29,8 @@ export class FieldInjector {
    * @param {string} value
    * @returns {boolean} Success status
    */
-  static setFieldValue(selector, value, fieldData = null) {
+  static setFieldValue(selector, value) {
     try {
-      // Check if this is a Google Forms radio button FIRST (before querying)
-      if (fieldData && fieldData._googleFormsRadioGroup) {
-        console.log(`[FieldInjector] Detected Google Forms radio group`);
-
-        // Skip if value is undefined or null
-        if (value === undefined || value === null) {
-          console.warn(`Skipping undefined/null value for Google Forms radio: ${selector}`);
-          return false;
-        }
-
-        return this.fillGoogleFormsRadio(fieldData, String(value));
-      }
-
       const element = this.safeQuery(selector);
 
       if (!element) {
@@ -91,109 +78,6 @@ export class FieldInjector {
 
     } catch (error) {
       console.error(`Error setting field value for ${selector}:`, error);
-      return false;
-    }
-  }
-
-  /**
-   * Fill a Google Forms radio button (ARIA-based)
-   * @param {Object} fieldData - Field data with _container reference
-   * @param {string} value - The option text to select
-   * @returns {boolean}
-   */
-  static fillGoogleFormsRadio(fieldData, value) {
-    try {
-      const container = fieldData._container;
-
-      if (!container) {
-        console.error('[FieldInjector] No container reference for Google Forms radio');
-        return false;
-      }
-
-      console.log('[FieldInjector] fillGoogleFormsRadio called:', {
-        label: fieldData.label,
-        value: value,
-        options: fieldData.options
-      });
-
-      // Get all radio options within this group
-      const radioOptions = container.querySelectorAll('[role="radio"]');
-      console.log(`[FieldInjector] Found ${radioOptions.length} Google Forms radio options`);
-
-      const valueLower = value.toLowerCase();
-      let matchedRadio = null;
-      let matchedIndex = -1;
-
-      // Try to find matching radio by text content or aria-label
-      radioOptions.forEach((radio, index) => {
-        if (matchedRadio) return;
-
-        const ariaLabel = (radio.getAttribute('aria-label') || '').toLowerCase();
-        const textContent = (radio.textContent || '').toLowerCase().trim();
-
-        console.log(`[FieldInjector]   Radio ${index}: aria-label="${ariaLabel}", text="${textContent}"`);
-
-        // Strategy 1: Exact match with aria-label
-        if (ariaLabel && ariaLabel === valueLower) {
-          console.log(`[FieldInjector]   ✓ Matched by exact aria-label`);
-          matchedRadio = radio;
-          matchedIndex = index;
-          return;
-        }
-
-        // Strategy 2: Exact match with text content
-        if (textContent && textContent === valueLower) {
-          console.log(`[FieldInjector]   ✓ Matched by exact text content`);
-          matchedRadio = radio;
-          matchedIndex = index;
-          return;
-        }
-
-        // Strategy 3: Contains match with aria-label
-        if (ariaLabel && ariaLabel.includes(valueLower)) {
-          console.log(`[FieldInjector]   ✓ Matched by aria-label contains`);
-          matchedRadio = radio;
-          matchedIndex = index;
-          return;
-        }
-
-        // Strategy 4: Contains match with text content
-        if (textContent && textContent.includes(valueLower)) {
-          console.log(`[FieldInjector]   ✓ Matched by text content contains`);
-          matchedRadio = radio;
-          matchedIndex = index;
-          return;
-        }
-      });
-
-      if (matchedRadio) {
-        console.log(`[FieldInjector] Clicking Google Forms radio option ${matchedIndex}`);
-
-        // Click the radio button to select it
-        matchedRadio.click();
-
-        // Wait a bit and verify it was selected
-        setTimeout(() => {
-          const isSelected = matchedRadio.getAttribute('aria-checked') === 'true';
-          console.log(`[FieldInjector] Radio selection verified: ${isSelected}`);
-        }, 100);
-
-        return true;
-      } else {
-        console.warn(`[FieldInjector] No matching radio found for "${value}", selecting random option`);
-
-        // Fallback: select a random option
-        if (radioOptions.length > 0) {
-          const randomIndex = Math.floor(Math.random() * radioOptions.length);
-          console.log(`[FieldInjector] Clicking random radio option ${randomIndex}`);
-          radioOptions[randomIndex].click();
-          return true;
-        }
-
-        return false;
-      }
-    } catch (error) {
-      console.error('[FieldInjector] Error filling Google Forms radio:', error);
       return false;
     }
   }
@@ -333,16 +217,8 @@ export class FieldInjector {
     try {
       const radioName = element.name || element.getAttribute('name');
 
-      console.log('[FieldInjector] fillRadio called:', {
-        radioName,
-        value,
-        elementId: element.id,
-        elementValue: element.value
-      });
-
       if (!radioName) {
         // No group name, just check this radio button
-        console.log('[FieldInjector] No radio name, checking single radio');
         element.checked = true;
         return true;
       }
@@ -351,8 +227,6 @@ export class FieldInjector {
       const radioGroup = document.querySelectorAll(
         `input[type="radio"][name="${radioName}"]`
       );
-
-      console.log(`[FieldInjector] Found ${radioGroup.length} radios in group "${radioName}"`);
 
       if (radioGroup.length === 0) {
         element.checked = true;
@@ -363,8 +237,6 @@ export class FieldInjector {
       if (value === 'true' || value === '1') {
         const randomIndex = Math.floor(Math.random() * radioGroup.length);
         const selectedRadio = radioGroup[randomIndex];
-
-        console.log(`[FieldInjector] Generic value, randomly selecting radio ${randomIndex}`);
 
         radioGroup.forEach(radio => {
           radio.checked = false;
@@ -379,12 +251,11 @@ export class FieldInjector {
       let matchedRadio = null;
       const valueLower = value.toLowerCase();
 
-      radioGroup.forEach((radio, index) => {
+      radioGroup.forEach((radio) => {
         if (matchedRadio) return; // Already found a match
 
         // Strategy 1: Match by value attribute
         if (radio.value && radio.value.toLowerCase() === valueLower) {
-          console.log(`[FieldInjector] Matched radio ${index} by value attribute: "${radio.value}"`);
           matchedRadio = radio;
           return;
         }
@@ -393,7 +264,6 @@ export class FieldInjector {
         if (radio.id) {
           const label = document.querySelector(`label[for="${radio.id}"]`);
           if (label && label.textContent.toLowerCase().includes(valueLower)) {
-            console.log(`[FieldInjector] Matched radio ${index} by label[for]: "${label.textContent.trim()}"`);
             matchedRadio = radio;
             return;
           }
@@ -402,7 +272,6 @@ export class FieldInjector {
         // Strategy 3: Match by wrapping label
         const parentLabel = radio.closest('label');
         if (parentLabel && parentLabel.textContent.toLowerCase().includes(valueLower)) {
-          console.log(`[FieldInjector] Matched radio ${index} by wrapping label: "${parentLabel.textContent.trim()}"`);
           matchedRadio = radio;
           return;
         }
@@ -411,7 +280,6 @@ export class FieldInjector {
         const nextSibling = radio.nextElementSibling || radio.nextSibling;
         if (nextSibling && nextSibling.textContent &&
             nextSibling.textContent.toLowerCase().includes(valueLower)) {
-          console.log(`[FieldInjector] Matched radio ${index} by next sibling: "${nextSibling.textContent.trim()}"`);
           matchedRadio = radio;
           return;
         }
@@ -426,12 +294,10 @@ export class FieldInjector {
         // Check the matched radio
         matchedRadio.checked = true;
         this.triggerEvents(matchedRadio);
-        console.log('[FieldInjector] Successfully matched and checked radio');
         return true;
       }
 
       // No match found, randomly select one
-      console.warn(`[FieldInjector] No match found for "${value}", randomly selecting one`);
       const randomIndex = Math.floor(Math.random() * radioGroup.length);
       const selectedRadio = radioGroup[randomIndex];
 
@@ -500,10 +366,9 @@ export class FieldInjector {
   /**
    * Fill multiple fields at once
    * @param {Object} fieldValues - Mapping of selector to value
-   * @param {Object} fieldsData - Optional mapping of selector to full field data
    * @returns {Object} Results summary
    */
-  static fillMultipleFields(fieldValues, fieldsData = null) {
+  static fillMultipleFields(fieldValues) {
     const results = {
       success: [],
       failed: [],
@@ -515,10 +380,7 @@ export class FieldInjector {
     for (const [selector, value] of Object.entries(fieldValues)) {
       results.total++;
 
-      // Get field data if available
-      const fieldData = fieldsData ? fieldsData[selector] : null;
-
-      const success = this.setFieldValue(selector, value, fieldData);
+      const success = this.setFieldValue(selector, value);
 
       if (success) {
         results.success.push({ selector, value });

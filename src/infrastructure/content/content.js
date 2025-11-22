@@ -34,9 +34,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Store extracted fields with their container references (needed for Google Forms)
-let extractedFieldsData = {};
-
 /**
  * Handle field extraction request
  * @param {Function} sendResponse
@@ -48,23 +45,9 @@ function handleExtractFields(sendResponse) {
 
     console.log('Extracted fields:', result);
 
-    // Store fields data locally (with DOM references that can't be serialized)
-    extractedFieldsData = {};
-    result.fields.forEach(field => {
-      extractedFieldsData[field.selector] = field;
-    });
-
-    console.log(`[Content] Stored ${Object.keys(extractedFieldsData).length} fields locally`);
-
-    // Send back fields without the _container property (it can't be serialized)
-    const fieldsToSend = result.fields.map(field => {
-      const { _container, ...serializableField } = field;
-      return serializableField;
-    });
-
     sendResponse({
       success: true,
-      fields: fieldsToSend,
+      fields: result.fields,
       count: result.count,
       stats: result.stats
     });
@@ -87,8 +70,7 @@ function handleExtractFields(sendResponse) {
 function handleFillFields(data, sendResponse) {
   try {
     console.log('Filling fields with data:', {
-      fieldCount: Object.keys(data || {}).length,
-      hasStoredFieldsData: Object.keys(extractedFieldsData).length > 0
+      fieldCount: Object.keys(data || {}).length
     });
 
     // Validate input
@@ -96,11 +78,10 @@ function handleFillFields(data, sendResponse) {
       throw new Error('Invalid field data provided');
     }
 
-    // Execute the fill fields use case with stored fields data
+    // Execute the fill fields use case
     const useCase = new FillFieldsUseCase();
     const result = useCase.execute({
-      fieldValues: data,
-      fieldsData: extractedFieldsData // Pass the stored fields data with DOM references
+      fieldValues: data
     });
 
     console.log('Field filling complete:', result);

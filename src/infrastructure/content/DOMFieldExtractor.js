@@ -20,40 +20,18 @@ export class DOMFieldExtractor {
     const textareas = document.querySelectorAll('textarea');
     const selects = document.querySelectorAll('select');
 
-    console.log(`[DOMFieldExtractor] Found ${inputs.length} inputs, ${textareas.length} textareas, ${selects.length} selects`);
-
-    // Count radio buttons
-    const radioCount = Array.from(inputs).filter(input => input.type === 'radio').length;
-    console.log(`[DOMFieldExtractor] Found ${radioCount} standard radio buttons`);
-
-    // Check for Google Forms custom radio buttons (ARIA-based)
-    const ariaRadios = document.querySelectorAll('[role="radio"], [role="radiogroup"]');
-    console.log(`[DOMFieldExtractor] Found ${ariaRadios.length} ARIA radio elements (Google Forms style)`);
-
-    // Check for Google Forms radio containers
-    const googleFormsRadioContainers = document.querySelectorAll('[data-params*="radio"], .freebirdFormviewerComponentsQuestionRadioRoot');
-    console.log(`[DOMFieldExtractor] Found ${googleFormsRadioContainers.length} Google Forms radio containers`);
-
     // Process each type
     inputs.forEach(input => {
       // For radio buttons, only process one per group
       if (input.type === 'radio' && input.name) {
         if (processedRadioGroups.has(input.name)) {
-          console.log(`[DOMFieldExtractor] Skipping duplicate radio group: "${input.name}"`);
           return; // Skip this radio, already processed this group
         }
-        console.log(`[DOMFieldExtractor] Processing new radio group: "${input.name}"`);
         processedRadioGroups.add(input.name);
       }
 
       const fieldData = this.extractFieldData(input);
       if (fieldData) {
-        console.log(`[DOMFieldExtractor] Extracted field:`, {
-          type: fieldData.type,
-          label: fieldData.label,
-          name: fieldData.name,
-          optionsCount: fieldData.options?.length || 0
-        });
         fields.push(fieldData);
       }
     });
@@ -68,138 +46,7 @@ export class DOMFieldExtractor {
       if (fieldData) fields.push(fieldData);
     });
 
-    // Extract Google Forms radio button groups (ARIA-based)
-    const googleFormsRadioGroups = this.extractGoogleFormsRadios();
-    console.log(`[DOMFieldExtractor] Extracted ${googleFormsRadioGroups.length} Google Forms radio groups`);
-    googleFormsRadioGroups.forEach(group => {
-      fields.push(group);
-    });
-
     return fields;
-  }
-
-  /**
-   * Extract Google Forms custom radio button groups
-   * Google Forms uses ARIA roles instead of standard radio inputs
-   * @returns {Array<Object>}
-   */
-  static extractGoogleFormsRadios() {
-    const radioGroups = [];
-    const processedGroups = new Set();
-
-    // Find all radiogroup containers (one per question)
-    const radioGroupContainers = document.querySelectorAll('[role="radiogroup"]');
-
-    console.log(`[DOMFieldExtractor] Processing ${radioGroupContainers.length} Google Forms radiogroups`);
-
-    radioGroupContainers.forEach((container, index) => {
-      try {
-        // Get the question label (usually in a heading or label before the radiogroup)
-        let questionLabel = '';
-
-        // Strategy 1: Look for aria-labelledby
-        const labelledBy = container.getAttribute('aria-labelledby');
-        if (labelledBy) {
-          const labelElement = document.getElementById(labelledBy);
-          if (labelElement) {
-            questionLabel = this.cleanLabelText(labelElement.textContent);
-          }
-        }
-
-        // Strategy 2: Look for previous sibling or parent with question text
-        if (!questionLabel) {
-          let current = container;
-          while (current && !questionLabel) {
-            const prevSibling = current.previousElementSibling;
-            if (prevSibling) {
-              const text = prevSibling.textContent.trim();
-              if (text && text.length > 0 && text.length < 500) {
-                questionLabel = this.cleanLabelText(text);
-                break;
-              }
-            }
-            current = current.parentElement;
-            if (current && current.classList.contains('freebirdFormviewerComponentsQuestionBaseRoot')) {
-              // Found the question container, get its text
-              const headerText = current.querySelector('[role="heading"], h2, h3, .freebirdFormviewerComponentsQuestionBaseTitle');
-              if (headerText) {
-                questionLabel = this.cleanLabelText(headerText.textContent);
-                break;
-              }
-            }
-          }
-        }
-
-        // Get all radio options within this group
-        const radioOptions = container.querySelectorAll('[role="radio"]');
-        const options = [];
-
-        console.log(`[DOMFieldExtractor] Google Forms radio group ${index}: Found ${radioOptions.length} options`);
-
-        radioOptions.forEach((radio, optionIndex) => {
-          // Get option text from aria-label or text content
-          let optionText = radio.getAttribute('aria-label') || '';
-
-          if (!optionText) {
-            // Look for text in the radio element or its children
-            const textContent = radio.textContent.trim();
-            if (textContent) {
-              optionText = textContent;
-            }
-          }
-
-          if (optionText) {
-            options.push(this.cleanLabelText(optionText));
-            console.log(`[DOMFieldExtractor]   Option ${optionIndex}: "${optionText}"`);
-          }
-        });
-
-        if (options.length > 0) {
-          // Create a unique identifier for this radio group
-          const groupId = `google-forms-radio-${index}`;
-
-          // Generate a unique selector using data attribute or aria-labelledby
-          let selector;
-          const labelledBy = container.getAttribute('aria-labelledby');
-          if (labelledBy) {
-            selector = `[role="radiogroup"][aria-labelledby="${labelledBy}"]`;
-          } else {
-            // Fallback to a more robust nth-of-type selector
-            const allRadioGroups = document.querySelectorAll('[role="radiogroup"]');
-            const actualIndex = Array.from(allRadioGroups).indexOf(container);
-            selector = `[role="radiogroup"]:nth-of-type(${actualIndex + 1})`;
-          }
-
-          const fieldData = {
-            selector: selector,
-            label: questionLabel || `Question ${index + 1}`,
-            ariaLabel: container.getAttribute('aria-label') || '',
-            placeholder: '',
-            name: groupId,
-            id: groupId,
-            type: 'google-forms-radio',
-            value: '',
-            required: container.hasAttribute('aria-required'),
-            options: options,
-            _googleFormsRadioGroup: true,
-            _container: container // Store reference for filling
-          };
-
-          console.log(`[DOMFieldExtractor] Created Google Forms radio field:`, {
-            selector: fieldData.selector,
-            label: fieldData.label,
-            optionsCount: options.length,
-            options: options
-          });
-
-          radioGroups.push(fieldData);
-        }
-      } catch (error) {
-        console.error(`[DOMFieldExtractor] Error extracting Google Forms radio group ${index}:`, error);
-      }
-    });
-
-    return radioGroups;
   }
 
   /**
@@ -342,10 +189,8 @@ export class DOMFieldExtractor {
         `input[type="radio"][name="${element.name}"]`
       );
 
-      console.log(`[DOMFieldExtractor] Extracting options for radio group "${element.name}" (${radioGroup.length} radios)`);
-
       const options = [];
-      radioGroup.forEach((radio, index) => {
+      radioGroup.forEach((radio) => {
         // Try to find label for this radio button
         let labelText = '';
 
@@ -354,7 +199,6 @@ export class DOMFieldExtractor {
           const label = document.querySelector(`label[for="${radio.id}"]`);
           if (label) {
             labelText = this.cleanLabelText(label.textContent);
-            console.log(`[DOMFieldExtractor] Radio ${index}: Found label[for="${radio.id}"]: "${labelText}"`);
           }
         }
 
@@ -363,7 +207,6 @@ export class DOMFieldExtractor {
           const parentLabel = radio.closest('label');
           if (parentLabel) {
             labelText = this.cleanLabelText(parentLabel.textContent);
-            console.log(`[DOMFieldExtractor] Radio ${index}: Found wrapping label: "${labelText}"`);
           }
         }
 
@@ -372,30 +215,22 @@ export class DOMFieldExtractor {
           const nextSibling = radio.nextElementSibling;
           if (nextSibling.tagName.toLowerCase() === 'label') {
             labelText = this.cleanLabelText(nextSibling.textContent);
-            console.log(`[DOMFieldExtractor] Radio ${index}: Found next sibling label: "${labelText}"`);
           } else {
             // Get text content from next sibling
             labelText = this.cleanLabelText(nextSibling.textContent);
-            if (labelText) {
-              console.log(`[DOMFieldExtractor] Radio ${index}: Found next sibling text: "${labelText}"`);
-            }
           }
         }
 
         // Strategy 4: Use value attribute as fallback
         if (!labelText && radio.value) {
           labelText = radio.value;
-          console.log(`[DOMFieldExtractor] Radio ${index}: Using value attribute: "${labelText}"`);
         }
 
         if (labelText && labelText.length > 0) {
           options.push(labelText);
-        } else {
-          console.warn(`[DOMFieldExtractor] Radio ${index}: No label text found (id="${radio.id}", value="${radio.value}")`);
         }
       });
 
-      console.log(`[DOMFieldExtractor] Extracted ${options.length} options for radio group "${element.name}":`, options);
       return options;
     }
 

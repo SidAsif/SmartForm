@@ -12,14 +12,12 @@ export class FillFieldsUseCase {
    * Execute the field filling operation
    * @param {Object} params
    * @param {Object} params.fieldValues - Mapping of selector to value
-   * @param {Object} params.fieldsData - Optional mapping of selector to full field data
    * @returns {Object} Result summary
    */
-  execute({ fieldValues, fieldsData = null }) {
+  execute({ fieldValues }) {
     try {
       console.log('FillFieldsUseCase: Starting execution', {
-        fieldCount: Object.keys(fieldValues).length,
-        hasFieldsData: !!fieldsData
+        fieldCount: Object.keys(fieldValues).length
       });
 
       // Validate input
@@ -32,7 +30,7 @@ export class FillFieldsUseCase {
       }
 
       // Fill all fields using FieldInjector
-      const results = FieldInjector.fillMultipleFields(fieldValues, fieldsData);
+      const results = FieldInjector.fillMultipleFields(fieldValues);
 
       console.log('FillFieldsUseCase: Fill complete', {
         total: results.total,

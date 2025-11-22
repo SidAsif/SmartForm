@@ -292,22 +292,10 @@ export class RandomDataGenerator {
     }
 
     // Handle radio buttons - pick from options if available
-    if (type === 'radio' || type === 'google-forms-radio') {
-      console.log('[RandomDataGenerator] Generating value for radio button:', {
-        type: type,
-        label: field.label,
-        name: field.name,
-        hasOptions: !!field.options,
-        optionsLength: field.options?.length || 0,
-        options: field.options
-      });
-
+    if (type === 'radio') {
       if (field.options && field.options.length > 0) {
-        const selectedOption = this.randomOption(field.options);
-        console.log(`[RandomDataGenerator] Selected option: "${selectedOption}" from [${field.options.join(', ')}]`);
-        return selectedOption;
+        return this.randomOption(field.options);
       }
-      console.warn('[RandomDataGenerator] No options available for radio, using fallback "true"');
       return 'true'; // Fallback: randomly select one
     }
 

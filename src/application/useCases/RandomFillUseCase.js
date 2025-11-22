@@ -32,7 +32,6 @@ export class RandomFillUseCase {
 
       // Generate values for each field
       const fieldValues = {};
-      const fieldsData = {}; // Store full field data for Google Forms radio
 
       for (const field of formFields) {
         // Generate random data based on field
@@ -40,17 +39,6 @@ export class RandomFillUseCase {
 
         // Map selector to value
         fieldValues[field.selector] = value;
-
-        // Store full field data (needed for Google Forms radio buttons)
-        fieldsData[field.selector] = field;
-
-        console.log('Generated value:', {
-          selector: field.selector,
-          label: field.label,
-          type: field.type,
-          value: value,
-          isGoogleFormsRadio: field._googleFormsRadioGroup || false
-        });
       }
 
       console.log('RandomFillUseCase: Generation complete', {
@@ -60,8 +48,7 @@ export class RandomFillUseCase {
 
       return {
         success: true,
-        fieldValues: fieldValues,
-        fieldsData: fieldsData
+        fieldValues: fieldValues
       };
 
     } catch (error) {
