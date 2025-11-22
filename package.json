@@ -1,0 +1,17 @@
+{
+  "name": "smartform-auto-filler",
+  "version": "1.0.0",
+  "description": "AI-powered Chrome extension for intelligent form auto-filling",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\""
+  },
+  "keywords": ["chrome-extension", "form-filler", "ai", "automation"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.19.0"
+  },
+  "dependencies": {}
+}

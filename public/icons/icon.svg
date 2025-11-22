@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#grad1)"/>
+
+  <!-- Form icon -->
+  <rect x="35" y="35" width="58" height="58" rx="4" fill="white" opacity="0.9"/>
+
+  <!-- Form lines -->
+  <line x1="45" y1="48" x2="75" y2="48" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+  <line x1="45" y1="60" x2="83" y2="60" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+  <line x1="45" y1="72" x2="70" y2="72" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Sparkle/AI indicator -->
+  <circle cx="88" cy="80" r="12" fill="#ffd700"/>
+  <path d="M 88 74 L 89 79 L 94 80 L 89 81 L 88 86 L 87 81 L 82 80 L 87 79 Z" fill="white"/>
+</svg>
