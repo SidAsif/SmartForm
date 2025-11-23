@@ -521,6 +521,12 @@
       if (this.matches(combined, ["department", "dept"])) {
         return this.randomDepartment();
       }
+      if (this.matches(combined, ["gstin", "gst", "tax", "gst number", "gstin number"])) {
+        return this.randomGSTIN();
+      }
+      if (this.matches(combined, ["pan", "pan number", "pan card"])) {
+        return this.randomPAN();
+      }
       if (this.matches(combined, ["website", "site", "homepage"]) || type === "url" && !this.matches(combined, ["linkedin", "twitter", "facebook"])) {
         return this.randomWebsite();
       }
@@ -629,13 +635,7 @@
       return `${firstName}${separator}${lastName}${number}@${domain}`;
     }
     static randomPhone() {
-      const formats = [
-        `+1 (${this.randomDigits(3)}) ${this.randomDigits(3)}-${this.randomDigits(4)}`,
-        `${this.randomDigits(3)}-${this.randomDigits(3)}-${this.randomDigits(4)}`,
-        `(${this.randomDigits(3)}) ${this.randomDigits(3)}-${this.randomDigits(4)}`,
-        `+1-${this.randomDigits(3)}-${this.randomDigits(3)}-${this.randomDigits(4)}`
-      ];
-      return this.pick(formats);
+      return this.randomDigits(10);
     }
     static randomFirstName() {
       const names = [
@@ -1093,6 +1093,63 @@
         "Exceeded expectations"
       ];
       return this.pick(shortFeedbacks);
+    }
+    /**
+     * Generate random GSTIN (Goods and Services Tax Identification Number)
+     * Format: 22AAAAA0000A1Z5
+     * - 2 digits: State code
+     * - 10 characters: PAN
+     * - 1 digit: Entity number (1-9, A-Z)
+     * - 1 character: 'Z' (default)
+     * - 1 digit: Checksum
+     */
+    static randomGSTIN() {
+      const stateCode = this.randomDigits(2);
+      const pan = this.randomPAN();
+      const entityNumber = this.pick(["1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C"]);
+      const checksum = this.randomDigit();
+      return `${stateCode}${pan}${entityNumber}Z${checksum}`;
+    }
+    /**
+     * Generate random PAN (Permanent Account Number)
+     * Format: AAAAA0000A
+     * - 3 letters: First 3 chars (AAA)
+     * - 1 letter: Fourth char (P for individual, C for company, etc.)
+     * - 1 letter: Fifth char (first letter of surname/name)
+     * - 4 digits: Sequential number
+     * - 1 letter: Alphabetic check digit
+     */
+    static randomPAN() {
+      const firstThree = this.randomLetters(3).toUpperCase();
+      const fourthChar = this.pick(["P", "C", "H", "F", "A", "T", "B", "L", "J", "G"]);
+      const fifthChar = this.randomLetter().toUpperCase();
+      const digits = this.randomDigits(4);
+      const checkDigit = this.randomLetter().toUpperCase();
+      return `${firstThree}${fourthChar}${fifthChar}${digits}${checkDigit}`;
+    }
+    /**
+     * Generate random letters
+     */
+    static randomLetters(count) {
+      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let result = "";
+      for (let i = 0; i < count; i++) {
+        result += letters.charAt(Math.floor(Math.random() * letters.length));
+      }
+      return result;
+    }
+    /**
+     * Generate single random letter
+     */
+    static randomLetter() {
+      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      return letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    /**
+     * Generate single random digit
+     */
+    static randomDigit() {
+      return String(Math.floor(Math.random() * 10));
     }
   };
 
