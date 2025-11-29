@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SmartForm Auto-Filler",
   "version": "1.0.0",
-  "description": "Intelligently auto-fill web forms with custom profile data or realistic random test data. Perfect for testing, surveys, and repetitive form filling.",
+  "description": "Auto-fill web forms with your profile or random test data. Perfect for developers, testers, and survey participants.",
   "author": "Md Asif Siddiqui",
   "homepage_url": "https://github.com/SidAsif/SmartForm",
   "permissions": ["activeTab", "storage", "scripting"],

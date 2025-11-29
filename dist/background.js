@@ -1372,6 +1372,9 @@
       case "content_ready":
         handleContentReady(request, sender);
         return false;
+      case "update_badge":
+        handleUpdateBadge(request, sender);
+        return false;
       case "ping":
         sendResponse({ status: "ready" });
         return false;
@@ -1435,6 +1438,28 @@
       tabId: sender.tab?.id,
       url: request.url
     });
+  }
+  function handleUpdateBadge(request, sender) {
+    const tabId = sender.tab?.id;
+    const count = request.count || 0;
+    if (!tabId)
+      return;
+    if (count > 0) {
+      chrome.action.setBadgeText({
+        text: String(count),
+        tabId
+      });
+      chrome.action.setBadgeBackgroundColor({
+        color: "#4CAF50",
+        tabId
+      });
+      console.log(`Badge updated for tab ${tabId}: ${count} fields detected`);
+    } else {
+      chrome.action.setBadgeText({
+        text: "",
+        tabId
+      });
+    }
   }
   chrome.runtime.onInstalled.addListener((details) => {
     console.log("SmartForm Auto-Filler installed:", details.reason);

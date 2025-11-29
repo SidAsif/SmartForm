@@ -100,7 +100,7 @@ function handleFillFields(data, sendResponse) {
 }
 
 /**
- * Notify background that content script is ready
+ * Notify background that content script is ready and update badge with field count
  */
 function notifyReady() {
   chrome.runtime.sendMessage({
@@ -109,7 +109,40 @@ function notifyReady() {
   }).catch(() => {
     // Ignore errors if background script isn't ready
   });
+
+  // Update badge with number of detected fields
+  updateBadge();
+}
+
+/**
+ * Update extension badge with number of form fields detected on the page
+ */
+function updateBadge() {
+  try {
+    const useCase = new ExtractFieldsUseCase();
+    const result = useCase.execute();
+
+    // Send field count to background for badge update
+    chrome.runtime.sendMessage({
+      action: 'update_badge',
+      count: result.count
+    }).catch(() => {
+      // Ignore errors if background script isn't ready
+    });
+  } catch (error) {
+    console.error('Error updating badge:', error);
+  }
 }
 
 // Initialize
 notifyReady();
+
+// Update badge when page changes (for SPAs)
+let lastUrl = window.location.href;
+new MutationObserver(() => {
+  const currentUrl = window.location.href;
+  if (currentUrl !== lastUrl) {
+    lastUrl = currentUrl;
+    updateBadge();
+  }
+}).observe(document.body, { childList: true, subtree: true });

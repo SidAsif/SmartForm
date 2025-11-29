@@ -109,6 +109,44 @@ npm run build
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## Privacy Policy
+
+SmartForm Auto-Filler is committed to protecting your privacy. This privacy policy explains how we handle your data:
+
+### Data Collection
+- **We do NOT collect any user data**
+- **We do NOT track your browsing activity**
+- **We do NOT share any information with third parties**
+
+### Data Storage
+- **Local Storage Only**: All profile data (name, email, phone, address, etc.) is stored locally on your device using Chrome's storage API
+- **No External Transmission**: Your data never leaves your device and is not sent to any external servers
+- **No Analytics**: We do not use any analytics or tracking tools
+
+### Permissions Explained
+- **activeTab**: Required to detect and fill form fields on the current webpage when you click the extension
+- **storage**: Required to save your profile data locally on your device
+- **scripting**: Required to inject scripts that detect form fields and fill them with data
+- **host_permissions (<all_urls>)**: Required to work on all websites with forms. The extension only accesses pages when you explicitly use it
+
+### Your Control
+- You can delete all stored profile data at any time through the extension settings
+- Uninstalling the extension removes all locally stored data
+- The extension only runs when you explicitly activate it
+
+### Open Source
+- Our code is open source and available for review on [GitHub](https://github.com/SidAsif/SmartForm)
+- Anyone can verify that we're not collecting or transmitting data
+
+### Contact
+If you have any questions about this privacy policy:
+- Email: your.email@example.com
+- GitHub Issues: [https://github.com/SidAsif/SmartForm/issues](https://github.com/SidAsif/SmartForm/issues)
+
+**Last Updated**: November 29, 2024
+
+---
+
 ## License
 
 MIT License - feel free to use this project for any purpose.

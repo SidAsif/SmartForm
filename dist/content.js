@@ -1280,6 +1280,28 @@
       url: window.location.href
     }).catch(() => {
     });
+    updateBadge();
+  }
+  function updateBadge() {
+    try {
+      const useCase = new ExtractFieldsUseCase();
+      const result = useCase.execute();
+      chrome.runtime.sendMessage({
+        action: "update_badge",
+        count: result.count
+      }).catch(() => {
+      });
+    } catch (error) {
+      console.error("Error updating badge:", error);
+    }
   }
   notifyReady();
+  var lastUrl = window.location.href;
+  new MutationObserver(() => {
+    const currentUrl = window.location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      updateBadge();
+    }
+  }).observe(document.body, { childList: true, subtree: true });
 })();

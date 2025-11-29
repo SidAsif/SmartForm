@@ -28,6 +28,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleContentReady(request, sender);
       return false;
 
+    case 'update_badge':
+      handleUpdateBadge(request, sender);
+      return false;
+
     case 'ping':
       sendResponse({ status: 'ready' });
       return false;
@@ -134,6 +138,41 @@ function handleContentReady(request, sender) {
     tabId: sender.tab?.id,
     url: request.url
   });
+}
+
+/**
+ * Handle badge update request from content script
+ * Shows the number of detected fields on the extension icon
+ * @param {Object} request - Contains count of fields
+ * @param {Object} sender - Message sender info
+ */
+function handleUpdateBadge(request, sender) {
+  const tabId = sender.tab?.id;
+  const count = request.count || 0;
+
+  if (!tabId) return;
+
+  // Update badge text with field count
+  if (count > 0) {
+    chrome.action.setBadgeText({
+      text: String(count),
+      tabId: tabId
+    });
+
+    // Set badge background color (green for detected fields)
+    chrome.action.setBadgeBackgroundColor({
+      color: '#4CAF50',
+      tabId: tabId
+    });
+
+    console.log(`Badge updated for tab ${tabId}: ${count} fields detected`);
+  } else {
+    // Clear badge if no fields detected
+    chrome.action.setBadgeText({
+      text: '',
+      tabId: tabId
+    });
+  }
 }
 
 /**
