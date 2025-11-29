@@ -2,15 +2,11 @@
   "manifest_version": 3,
   "name": "SmartForm Auto-Filler",
   "version": "1.0.0",
-  "description": "Chrome extension that auto-fills web forms with your profile data or random test data",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "description": "Intelligently auto-fill web forms with custom profile data or realistic random test data. Perfect for testing, surveys, and repetitive form filling.",
+  "author": "Md Asif Siddiqui",
+  "homepage_url": "https://github.com/SidAsif/SmartForm",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },

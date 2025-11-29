@@ -1,31 +1,34 @@
 /**
  * DOMFieldExtractor
  *
- * Infrastructure utility responsible for scanning the DOM and extracting raw field data.
- * This is the only class that directly touches the DOM.
+ * Scans web pages and extracts all form fields with their labels, types, and attributes.
+ * This is the bridge between the actual webpage DOM and our extension logic.
+ * Works with standard HTML forms, Angular (ng-model), and React (formcontrolname) frameworks.
  */
 import { SelectorGenerator } from './SelectorGenerator.js';
 
 export class DOMFieldExtractor {
   /**
-   * Extract all form fields from the current page
-   * @returns {Array<Object>} Raw field data
+   * Scan the page and collect all fillable form fields
+   * Looks for inputs, textareas, and select dropdowns that are visible to users
+   * @returns {Array<Object>} List of field data objects with labels, selectors, and metadata
    */
   static extractAll() {
     const fields = [];
     const processedRadioGroups = new Set();
 
-    // Query all relevant form elements
+    // Find all form elements on the page (excluding buttons and hidden fields)
     const inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="reset"])');
     const textareas = document.querySelectorAll('textarea');
     const selects = document.querySelectorAll('select');
 
-    // Process each type
+    // Process input fields (text, email, phone, radio, checkbox, etc.)
     inputs.forEach(input => {
-      // For radio buttons, only process one per group
+      // Radio buttons come in groups - we only need to process each group once
+      // This prevents duplicate entries for the same question
       if (input.type === 'radio' && input.name) {
         if (processedRadioGroups.has(input.name)) {
-          return; // Skip this radio, already processed this group
+          return; // Already handled this radio group, skip
         }
         processedRadioGroups.add(input.name);
       }
@@ -50,12 +53,13 @@ export class DOMFieldExtractor {
   }
 
   /**
-   * Extract data from a single form element
-   * @param {HTMLElement} element
-   * @returns {Object|null}
+   * Extract all useful information from a single form field
+   * Gathers label, type, placeholder, name, and any other clues we can use to fill it correctly
+   * @param {HTMLElement} element - The form field element to analyze
+   * @returns {Object|null} Field data object, or null if the field is hidden/invisible
    */
   static extractFieldData(element) {
-    // Skip invisible fields
+    // Don't process hidden or invisible fields - users can't see them anyway
     if (!this.isVisible(element)) {
       return null;
     }
@@ -63,27 +67,31 @@ export class DOMFieldExtractor {
     const tagName = element.tagName.toLowerCase();
     const type = element.type || tagName;
 
+    // Get the field's name - works with standard HTML, Angular (ng-model), and React (formcontrolname)
+    const nameAttr = element.name || element.getAttribute('ng-model') || element.getAttribute('formcontrolname') || '';
+
     return {
-      selector: SelectorGenerator.generate(element),
-      label: this.findLabel(element),
-      ariaLabel: element.getAttribute('aria-label') || '',
-      placeholder: element.placeholder || '',
-      name: element.name || '',
-      id: element.id || '',
-      type: type,
-      value: element.value || '',
-      required: element.required || false,
-      options: this.extractOptions(element)
+      selector: SelectorGenerator.generate(element),  // Unique CSS selector to find this field later
+      label: this.findLabel(element),                 // Human-readable label (e.g., "First Name")
+      ariaLabel: element.getAttribute('aria-label') || '',  // Accessibility label
+      placeholder: element.placeholder || '',         // Placeholder text
+      name: nameAttr,                                 // Field name attribute
+      id: element.id || '',                          // Field ID
+      type: type,                                    // Input type (text, email, select, etc.)
+      value: element.value || '',                    // Current value
+      required: element.required || false,           // Is this field required?
+      options: this.extractOptions(element)          // For dropdowns/radios - list of choices
     };
   }
 
   /**
-   * Find the associated label for a form element
-   * @param {HTMLElement} element
-   * @returns {string}
+   * Find the label text for a form field by trying different common HTML patterns
+   * Forms use many different ways to label fields, so we check all the usual methods
+   * @param {HTMLElement} element - The input field we're looking for a label for
+   * @returns {string} The label text, or empty string if none found
    */
   static findLabel(element) {
-    // Strategy 1: <label for="id">
+    // Method 1: Standard <label for="fieldId"> pointing to this input's ID
     if (element.id) {
       const label = document.querySelector(`label[for="${element.id}"]`);
       if (label) {
@@ -91,13 +99,13 @@ export class DOMFieldExtractor {
       }
     }
 
-    // Strategy 2: Wrapping <label>
+    // Method 2: Label wrapping the input (e.g., <label>Name: <input></label>)
     const parentLabel = element.closest('label');
     if (parentLabel) {
       return this.cleanLabelText(parentLabel.textContent);
     }
 
-    // Strategy 3: Previous sibling label
+    // Method 3: Label appears right before the input in the HTML
     let sibling = element.previousElementSibling;
     while (sibling) {
       if (sibling.tagName.toLowerCase() === 'label') {
@@ -106,7 +114,7 @@ export class DOMFieldExtractor {
       sibling = sibling.previousElementSibling;
     }
 
-    // Strategy 4: Parent's previous sibling (common pattern)
+    // Method 4: Label before the parent container (common in Bootstrap/Material UI)
     const parent = element.parentElement;
     if (parent) {
       const parentSibling = parent.previousElementSibling;
@@ -115,7 +123,7 @@ export class DOMFieldExtractor {
       }
     }
 
-    // Strategy 5: Look for nearby text content
+    // Method 5: Look for any nearby text that might be acting as a label
     const nearbyText = this.findNearbyText(element);
     if (nearbyText) {
       return nearbyText;
@@ -125,15 +133,16 @@ export class DOMFieldExtractor {
   }
 
   /**
-   * Find nearby text that might serve as a label
-   * @param {HTMLElement} element
-   * @returns {string}
+   * Search for text near a field that could be serving as a label
+   * Some forms don't use proper <label> tags, just plain text nearby
+   * @param {HTMLElement} element - The input field
+   * @returns {string} Text found near the field that looks like a label
    */
   static findNearbyText(element) {
     const parent = element.parentElement;
     if (!parent) return '';
 
-    // Get all text nodes near the element
+    // Walk through all text nodes in the parent container
     const walker = document.createTreeWalker(
       parent,
       NodeFilter.SHOW_TEXT,
@@ -144,6 +153,7 @@ export class DOMFieldExtractor {
     let textContent = '';
     let node;
 
+    // Look for text that's not too long (likely a label, not a paragraph)
     while (node = walker.nextNode()) {
       const text = node.textContent.trim();
       if (text && text.length > 0 && text.length < 100) {
@@ -156,34 +166,37 @@ export class DOMFieldExtractor {
   }
 
   /**
-   * Clean label text by removing extra whitespace and special characters
-   * @param {string} text
-   * @returns {string}
+   * Clean up label text by removing junk characters and extra whitespace
+   * Makes labels easier to match against field types (e.g., "Email *:" becomes "Email")
+   * @param {string} text - Raw label text from the page
+   * @returns {string} Cleaned, normalized label text
    */
   static cleanLabelText(text) {
     if (!text) return '';
 
     return text
-      .replace(/\n/g, ' ')           // Replace newlines with spaces
-      .replace(/\s+/g, ' ')          // Normalize whitespace
-      .replace(/[*:]+$/g, '')        // Remove trailing asterisks and colons
-      .trim()
-      .substring(0, 200);            // Limit length
+      .replace(/\n/g, ' ')           // Turn newlines into spaces
+      .replace(/\s+/g, ' ')          // Collapse multiple spaces into one
+      .replace(/[*:]+$/g, '')        // Remove asterisks (*) and colons (:) from the end
+      .trim()                        // Remove leading/trailing whitespace
+      .substring(0, 200);            // Keep it reasonable length
   }
 
   /**
-   * Extract options from select/radio/checkbox elements
-   * @param {HTMLElement} element
-   * @returns {Array<string>}
+   * Get the list of available choices for dropdown or radio button fields
+   * For dropdowns, returns all <option> values. For radios, finds all buttons in the group
+   * @param {HTMLElement} element - The select or radio input element
+   * @returns {Array<string>} List of choice labels (e.g., ["Male", "Female", "Other"])
    */
   static extractOptions(element) {
+    // For dropdown menus, just grab all the option texts
     if (element.tagName.toLowerCase() === 'select') {
       return Array.from(element.options)
         .map(option => option.text.trim())
         .filter(text => text.length > 0);
     }
 
-    // For radio buttons, extract all options from the same group
+    // For radio buttons, we need to find all buttons in the same group
     if (element.type === 'radio' && element.name) {
       const radioGroup = document.querySelectorAll(
         `input[type="radio"][name="${element.name}"]`
@@ -191,10 +204,10 @@ export class DOMFieldExtractor {
 
       const options = [];
       radioGroup.forEach((radio) => {
-        // Try to find label for this radio button
+        // Each radio button needs its own label - try multiple methods to find it
         let labelText = '';
 
-        // Strategy 1: Label with for attribute
+        // Method 1: Standard <label for="radioId">
         if (radio.id) {
           const label = document.querySelector(`label[for="${radio.id}"]`);
           if (label) {
@@ -202,7 +215,7 @@ export class DOMFieldExtractor {
           }
         }
 
-        // Strategy 2: Wrapping label
+        // Method 2: Wrapping label <label><input> Text</label>
         if (!labelText) {
           const parentLabel = radio.closest('label');
           if (parentLabel) {
@@ -210,18 +223,18 @@ export class DOMFieldExtractor {
           }
         }
 
-        // Strategy 3: Next sibling label
+        // Method 3: Label appears after the radio button
         if (!labelText && radio.nextElementSibling) {
           const nextSibling = radio.nextElementSibling;
           if (nextSibling.tagName.toLowerCase() === 'label') {
             labelText = this.cleanLabelText(nextSibling.textContent);
           } else {
-            // Get text content from next sibling
+            // Sometimes it's just text, not even in a <label> tag
             labelText = this.cleanLabelText(nextSibling.textContent);
           }
         }
 
-        // Strategy 4: Use value attribute as fallback
+        // Method 4: Fall back to the value attribute if nothing else works
         if (!labelText && radio.value) {
           labelText = radio.value;
         }
@@ -234,23 +247,25 @@ export class DOMFieldExtractor {
       return options;
     }
 
+    // Not a select or radio - no options to extract
     return [];
   }
 
   /**
-   * Check if an element is visible
-   * @param {HTMLElement} element
-   * @returns {boolean}
+   * Check if a form field is actually visible on the page
+   * Hidden fields should be ignored - we only want to fill fields users can see
+   * @param {HTMLElement} element - The field to check
+   * @returns {boolean} True if visible, false if hidden
    */
   static isVisible(element) {
-    // Check display and visibility
+    // Check CSS visibility properties
     const style = window.getComputedStyle(element);
 
     if (style.display === 'none' || style.visibility === 'hidden') {
       return false;
     }
 
-    // Check if element has dimensions
+    // Check if the field has any size (hidden fields often have 0x0 dimensions)
     const rect = element.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       return false;
@@ -260,10 +275,11 @@ export class DOMFieldExtractor {
   }
 
   /**
-   * Fill a specific field with a value using its selector
-   * @param {string} selector
-   * @param {string} value
-   * @returns {boolean} Success status
+   * Actually fill a form field with a value
+   * Finds the field using its CSS selector and sets the appropriate value
+   * @param {string} selector - CSS selector to find the field
+   * @param {string} value - The value to fill in
+   * @returns {boolean} True if filled successfully, false if something went wrong
    */
   static fillField(selector, value) {
     try {
@@ -274,21 +290,24 @@ export class DOMFieldExtractor {
         return false;
       }
 
-      // Handle different input types
+      // Different field types need different filling methods
       const tagName = element.tagName.toLowerCase();
 
       if (tagName === 'select') {
+        // Dropdowns need special handling to match options
         return this.fillSelect(element, value);
       } else if (element.type === 'checkbox') {
+        // Checkboxes are checked/unchecked, not filled with text
         element.checked = ['true', 'yes', '1'].includes(value.toLowerCase());
       } else if (element.type === 'radio') {
+        // Radio buttons just get selected
         element.checked = true;
       } else {
-        // Standard text input/textarea
+        // Everything else (text, email, number, etc.) just gets the value set
         element.value = value;
       }
 
-      // Trigger input and change events for frameworks like React
+      // Trigger events so React/Angular/Vue notice the change
       element.dispatchEvent(new Event('input', { bubbles: true }));
       element.dispatchEvent(new Event('change', { bubbles: true }));
 
@@ -300,21 +319,22 @@ export class DOMFieldExtractor {
   }
 
   /**
-   * Fill a select element by finding the closest matching option
-   * @param {HTMLSelectElement} element
-   * @param {string} value
-   * @returns {boolean}
+   * Fill a dropdown by finding the best matching option
+   * Tries exact match first, then partial match if needed
+   * @param {HTMLSelectElement} element - The dropdown element
+   * @param {string} value - The value we want to select (e.g., "California")
+   * @returns {boolean} True if we found and selected a match
    */
   static fillSelect(element, value) {
     const options = Array.from(element.options);
 
-    // Try exact match first
+    // First, try to find an exact match
     let matchingOption = options.find(opt =>
       opt.text.toLowerCase() === value.toLowerCase() ||
       opt.value.toLowerCase() === value.toLowerCase()
     );
 
-    // Try partial match
+    // If no exact match, try a partial match (e.g., "Calif" matches "California")
     if (!matchingOption) {
       matchingOption = options.find(opt =>
         opt.text.toLowerCase().includes(value.toLowerCase()) ||
@@ -328,6 +348,7 @@ export class DOMFieldExtractor {
       return true;
     }
 
+    // Couldn't find a match
     return false;
   }
 }

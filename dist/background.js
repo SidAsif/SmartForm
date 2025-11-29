@@ -400,9 +400,11 @@
   // src/infrastructure/generators/RandomDataGenerator.js
   var RandomDataGenerator = class {
     /**
-     * Generate value based on field type and label
-     * @param {Object} field - FormField entity
-     * @returns {string}
+     * The main brains of the operation - figures out what value to generate for a field
+     * Looks at the field's label, name, type, and placeholder to guess what it wants
+     * Then generates appropriate random data (email for email fields, names for name fields, etc.)
+     * @param {Object} field - The form field we need to fill
+     * @returns {string} Generated value that fits the field type
      */
     static generate(field) {
       const label = field.label.toLowerCase();
@@ -476,9 +478,6 @@
       if (this.matches(combined, ["email", "e-mail", "mail"]) || type === "email") {
         return this.randomEmail();
       }
-      if (this.matches(combined, ["phone", "mobile", "tel", "cell", "contact number"]) || type === "tel") {
-        return this.randomPhone();
-      }
       if (this.matches(combined, ["first name", "firstname", "fname", "given name"])) {
         return this.randomFirstName();
       }
@@ -493,6 +492,9 @@
       }
       if (this.matches(combined, ["username", "user name", "login", "handle"])) {
         return this.randomUsername();
+      }
+      if (this.matches(combined, ["phone", "mobile", "tel", "cell", "contact number", "contact no"]) || type === "tel") {
+        return this.randomPhone();
       }
       if (this.matches(combined, ["address", "street", "address line 1", "address1"])) {
         return this.randomAddress();
@@ -512,6 +514,21 @@
       if (this.matches(combined, ["country", "nation"])) {
         return this.randomCountry();
       }
+      if (type === "url") {
+        if (this.matches(combined, ["linkedin", "linked in"])) {
+          return this.randomLinkedIn();
+        }
+        if (this.matches(combined, ["twitter"])) {
+          return this.randomTwitter();
+        }
+        if (this.matches(combined, ["github"])) {
+          return this.randomGitHub();
+        }
+        return this.randomWebsite();
+      }
+      if (this.matches(combined, ["website", "site", "homepage", "web", "url", "link"])) {
+        return this.randomWebsite();
+      }
       if (this.matches(combined, ["company", "organization", "employer", "business", "firm"])) {
         return this.randomCompany();
       }
@@ -526,9 +543,6 @@
       }
       if (this.matches(combined, ["pan", "pan number", "pan card"])) {
         return this.randomPAN();
-      }
-      if (this.matches(combined, ["website", "site", "homepage"]) || type === "url" && !this.matches(combined, ["linkedin", "twitter", "facebook"])) {
-        return this.randomWebsite();
       }
       if (this.matches(combined, ["linkedin", "linked in"])) {
         return this.randomLinkedIn();
@@ -635,7 +649,9 @@
       return `${firstName}${separator}${lastName}${number}@${domain}`;
     }
     static randomPhone() {
-      return this.randomDigits(10);
+      const firstDigit = this.pick(["6", "7", "8", "9"]);
+      const remainingDigits = this.randomDigits(9);
+      return `${firstDigit}${remainingDigits}`;
     }
     static randomFirstName() {
       const names = [
@@ -795,9 +811,12 @@
       return this.pick(departments);
     }
     static randomWebsite() {
-      const names = ["mycompany", "example", "demo", "test", "sample", "mybusiness"];
-      const tlds = ["com", "net", "org", "io"];
-      return `https://www.${this.pick(names)}.${this.pick(tlds)}`;
+      const prefixes = ["my", "the", "best", "pro", "top", "digital", "smart", "tech"];
+      const names = ["company", "business", "solutions", "services", "group", "corp", "studio", "agency"];
+      const tlds = ["com", "net", "org", "io", "co"];
+      const usePrefix = this.randomBoolean();
+      const siteName = usePrefix ? `${this.pick(prefixes)}${this.pick(names)}` : this.pick(names);
+      return `https://www.${siteName}.${this.pick(tlds)}`;
     }
     static randomLinkedIn() {
       const username = this.randomUsername();

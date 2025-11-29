@@ -328,8 +328,9 @@
   // src/infrastructure/content/DOMFieldExtractor.js
   var DOMFieldExtractor = class {
     /**
-     * Extract all form fields from the current page
-     * @returns {Array<Object>} Raw field data
+     * Scan the page and collect all fillable form fields
+     * Looks for inputs, textareas, and select dropdowns that are visible to users
+     * @returns {Array<Object>} List of field data objects with labels, selectors, and metadata
      */
     static extractAll() {
       const fields = [];
@@ -362,9 +363,10 @@
       return fields;
     }
     /**
-     * Extract data from a single form element
-     * @param {HTMLElement} element
-     * @returns {Object|null}
+     * Extract all useful information from a single form field
+     * Gathers label, type, placeholder, name, and any other clues we can use to fill it correctly
+     * @param {HTMLElement} element - The form field element to analyze
+     * @returns {Object|null} Field data object, or null if the field is hidden/invisible
      */
     static extractFieldData(element) {
       if (!this.isVisible(element)) {
@@ -372,23 +374,35 @@
       }
       const tagName = element.tagName.toLowerCase();
       const type = element.type || tagName;
+      const nameAttr = element.name || element.getAttribute("ng-model") || element.getAttribute("formcontrolname") || "";
       return {
         selector: SelectorGenerator.generate(element),
+        // Unique CSS selector to find this field later
         label: this.findLabel(element),
+        // Human-readable label (e.g., "First Name")
         ariaLabel: element.getAttribute("aria-label") || "",
+        // Accessibility label
         placeholder: element.placeholder || "",
-        name: element.name || "",
+        // Placeholder text
+        name: nameAttr,
+        // Field name attribute
         id: element.id || "",
+        // Field ID
         type,
+        // Input type (text, email, select, etc.)
         value: element.value || "",
+        // Current value
         required: element.required || false,
+        // Is this field required?
         options: this.extractOptions(element)
+        // For dropdowns/radios - list of choices
       };
     }
     /**
-     * Find the associated label for a form element
-     * @param {HTMLElement} element
-     * @returns {string}
+     * Find the label text for a form field by trying different common HTML patterns
+     * Forms use many different ways to label fields, so we check all the usual methods
+     * @param {HTMLElement} element - The input field we're looking for a label for
+     * @returns {string} The label text, or empty string if none found
      */
     static findLabel(element) {
       if (element.id) {
@@ -422,9 +436,10 @@
       return "";
     }
     /**
-     * Find nearby text that might serve as a label
-     * @param {HTMLElement} element
-     * @returns {string}
+     * Search for text near a field that could be serving as a label
+     * Some forms don't use proper <label> tags, just plain text nearby
+     * @param {HTMLElement} element - The input field
+     * @returns {string} Text found near the field that looks like a label
      */
     static findNearbyText(element) {
       const parent = element.parentElement;
@@ -448,9 +463,10 @@
       return this.cleanLabelText(textContent);
     }
     /**
-     * Clean label text by removing extra whitespace and special characters
-     * @param {string} text
-     * @returns {string}
+     * Clean up label text by removing junk characters and extra whitespace
+     * Makes labels easier to match against field types (e.g., "Email *:" becomes "Email")
+     * @param {string} text - Raw label text from the page
+     * @returns {string} Cleaned, normalized label text
      */
     static cleanLabelText(text) {
       if (!text)
@@ -458,9 +474,10 @@
       return text.replace(/\n/g, " ").replace(/\s+/g, " ").replace(/[*:]+$/g, "").trim().substring(0, 200);
     }
     /**
-     * Extract options from select/radio/checkbox elements
-     * @param {HTMLElement} element
-     * @returns {Array<string>}
+     * Get the list of available choices for dropdown or radio button fields
+     * For dropdowns, returns all <option> values. For radios, finds all buttons in the group
+     * @param {HTMLElement} element - The select or radio input element
+     * @returns {Array<string>} List of choice labels (e.g., ["Male", "Female", "Other"])
      */
     static extractOptions(element) {
       if (element.tagName.toLowerCase() === "select") {
@@ -505,9 +522,10 @@
       return [];
     }
     /**
-     * Check if an element is visible
-     * @param {HTMLElement} element
-     * @returns {boolean}
+     * Check if a form field is actually visible on the page
+     * Hidden fields should be ignored - we only want to fill fields users can see
+     * @param {HTMLElement} element - The field to check
+     * @returns {boolean} True if visible, false if hidden
      */
     static isVisible(element) {
       const style2 = window.getComputedStyle(element);
@@ -521,10 +539,11 @@
       return true;
     }
     /**
-     * Fill a specific field with a value using its selector
-     * @param {string} selector
-     * @param {string} value
-     * @returns {boolean} Success status
+     * Actually fill a form field with a value
+     * Finds the field using its CSS selector and sets the appropriate value
+     * @param {string} selector - CSS selector to find the field
+     * @param {string} value - The value to fill in
+     * @returns {boolean} True if filled successfully, false if something went wrong
      */
     static fillField(selector, value) {
       try {
@@ -552,10 +571,11 @@
       }
     }
     /**
-     * Fill a select element by finding the closest matching option
-     * @param {HTMLSelectElement} element
-     * @param {string} value
-     * @returns {boolean}
+     * Fill a dropdown by finding the best matching option
+     * Tries exact match first, then partial match if needed
+     * @param {HTMLSelectElement} element - The dropdown element
+     * @param {string} value - The value we want to select (e.g., "California")
+     * @returns {boolean} True if we found and selected a match
      */
     static fillSelect(element, value) {
       const options = Array.from(element.options);

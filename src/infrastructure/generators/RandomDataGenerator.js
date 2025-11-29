@@ -1,36 +1,38 @@
 /**
  * RandomDataGenerator
  *
- * Infrastructure utility for generating realistic random data.
- * Used for Random Fill mode (no AI required).
- * Enhanced with better field detection and context-aware generation.
+ * Generates realistic random data to fill web forms automatically.
+ * Smart enough to understand what type of field it is (name, email, phone, etc.)
+ * and generate appropriate values. Works great for testing forms and surveys.
  */
 export class RandomDataGenerator {
   /**
-   * Generate value based on field type and label
-   * @param {Object} field - FormField entity
-   * @returns {string}
+   * The main brains of the operation - figures out what value to generate for a field
+   * Looks at the field's label, name, type, and placeholder to guess what it wants
+   * Then generates appropriate random data (email for email fields, names for name fields, etc.)
+   * @param {Object} field - The form field we need to fill
+   * @returns {string} Generated value that fits the field type
    */
   static generate(field) {
     const label = field.label.toLowerCase();
     const name = field.name.toLowerCase();
     const type = field.type;
     const placeholder = (field.placeholder || '').toLowerCase();
-    const combined = `${label} ${name} ${placeholder}`;
+    const combined = `${label} ${name} ${placeholder}`;  // Combine all text for easier searching
 
-    // ===== SURVEY & FEEDBACK FIELDS (Check these first for accuracy) =====
+    // ===== SURVEY & FEEDBACK FIELDS (Checked first for more accurate survey responses) =====
 
-    // Age range questions (common in surveys)
+    // Age questions - super common in surveys and registration forms
     if (this.matches(combined, ['age', 'age range', 'age group', 'how old'])) {
-      // For select/radio, pick from options if available
+      // If it's a dropdown or radio buttons, pick from the given options
       if ((type === 'select' || type === 'radio') && field.options && field.options.length > 0) {
         return this.randomOption(field.options);
       }
-      // For text input, return age number
+      // If it wants a number, give them an age between 18-65
       if (type === 'number') {
         return String(this.randomInt(18, 65));
       }
-      // Return age range text
+      // Otherwise give them an age range like "25-34"
       return this.randomAgeRange();
     }
 
@@ -118,19 +120,14 @@ export class RandomDataGenerator {
       return String(this.randomInt(lower, upper));
     }
 
-    // ===== STANDARD FIELDS =====
+    // ===== STANDARD FORM FIELDS (Personal info, contact details, etc.) =====
 
-    // Email fields
+    // Email fields - look for "email" keyword or input type="email"
     if (this.matches(combined, ['email', 'e-mail', 'mail']) || type === 'email') {
       return this.randomEmail();
     }
 
-    // Phone/Mobile fields
-    if (this.matches(combined, ['phone', 'mobile', 'tel', 'cell', 'contact number']) || type === 'tel') {
-      return this.randomPhone();
-    }
-
-    // Name fields (specific to general)
+    // Name fields - checked BEFORE phone because "First Name" shouldn't get a phone number!
     if (this.matches(combined, ['first name', 'firstname', 'fname', 'given name'])) {
       return this.randomFirstName();
     }
@@ -150,6 +147,11 @@ export class RandomDataGenerator {
 
     if (this.matches(combined, ['username', 'user name', 'login', 'handle'])) {
       return this.randomUsername();
+    }
+
+    // Phone/Mobile fields - Check AFTER name fields
+    if (this.matches(combined, ['phone', 'mobile', 'tel', 'cell', 'contact number', 'contact no']) || type === 'tel') {
+      return this.randomPhone();
     }
 
     // Address fields
@@ -179,6 +181,27 @@ export class RandomDataGenerator {
       return this.randomCountry();
     }
 
+    // Web/Social fields - Check BEFORE company to avoid "Company Website" matching "company"
+    if (type === 'url') {
+      // Check for specific social media sites first
+      if (this.matches(combined, ['linkedin', 'linked in'])) {
+        return this.randomLinkedIn();
+      }
+      if (this.matches(combined, ['twitter'])) {
+        return this.randomTwitter();
+      }
+      if (this.matches(combined, ['github'])) {
+        return this.randomGitHub();
+      }
+      // Default to website for any URL type
+      return this.randomWebsite();
+    }
+
+    // Check by keywords for text inputs labeled as website (BEFORE company check)
+    if (this.matches(combined, ['website', 'site', 'homepage', 'web', 'url', 'link'])) {
+      return this.randomWebsite();
+    }
+
     // Organization fields
     if (this.matches(combined, ['company', 'organization', 'employer', 'business', 'firm'])) {
       return this.randomCompany();
@@ -199,12 +222,6 @@ export class RandomDataGenerator {
 
     if (this.matches(combined, ['pan', 'pan number', 'pan card'])) {
       return this.randomPAN();
-    }
-
-    // Web/Social fields
-    if (this.matches(combined, ['website', 'site', 'homepage']) ||
-        (type === 'url' && !this.matches(combined, ['linkedin', 'twitter', 'facebook']))) {
-      return this.randomWebsite();
     }
 
     if (this.matches(combined, ['linkedin', 'linked in'])) {
@@ -349,7 +366,10 @@ export class RandomDataGenerator {
   static randomPhone() {
     // Generate clean 10-digit phone number (most compatible format)
     // Format: digits only (e.g., "9876543210")
-    return this.randomDigits(10);
+    // For Indian numbers, start with 6-9 for mobile numbers
+    const firstDigit = this.pick(['6', '7', '8', '9']);
+    const remainingDigits = this.randomDigits(9);
+    return `${firstDigit}${remainingDigits}`;
   }
 
   static randomFirstName() {
@@ -453,9 +473,17 @@ export class RandomDataGenerator {
   }
 
   static randomWebsite() {
-    const names = ['mycompany', 'example', 'demo', 'test', 'sample', 'mybusiness'];
-    const tlds = ['com', 'net', 'org', 'io'];
-    return `https://www.${this.pick(names)}.${this.pick(tlds)}`;
+    const prefixes = ['my', 'the', 'best', 'pro', 'top', 'digital', 'smart', 'tech'];
+    const names = ['company', 'business', 'solutions', 'services', 'group', 'corp', 'studio', 'agency'];
+    const tlds = ['com', 'net', 'org', 'io', 'co'];
+
+    // 50% chance to include prefix
+    const usePrefix = this.randomBoolean();
+    const siteName = usePrefix
+      ? `${this.pick(prefixes)}${this.pick(names)}`
+      : this.pick(names);
+
+    return `https://www.${siteName}.${this.pick(tlds)}`;
   }
 
   static randomLinkedIn() {
